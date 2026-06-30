@@ -136,6 +136,107 @@
             color: #FFD700;
             margin: 15px 0;
         }
+
+        /* 移动端虚拟按键 */
+        .touch-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: none;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 20px;
+            z-index: 15;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px), (pointer: coarse) {
+            .touch-controls {
+                display: flex;
+            }
+            .controls-info {
+                display: none;
+            }
+        }
+
+        .dpad {
+            display: grid;
+            grid-template-columns: 60px 60px 60px;
+            grid-template-rows: 60px 60px 60px;
+            gap: 4px;
+            pointer-events: all;
+        }
+
+        .dpad-btn {
+            width: 60px;
+            height: 60px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.25);
+            backdrop-filter: blur(4px);
+            color: white;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            cursor: pointer;
+            transition: background 0.1s, transform 0.1s;
+        }
+
+        .dpad-btn:active {
+            background: rgba(255,255,255,0.5);
+            transform: scale(0.92);
+        }
+
+        .dpad-up { grid-column: 2; grid-row: 1; }
+        .dpad-left { grid-column: 1; grid-row: 2; }
+        .dpad-right { grid-column: 3; grid-row: 2; }
+        .dpad-down { grid-column: 2; grid-row: 3; }
+
+        .action-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            pointer-events: all;
+        }
+
+        .action-btn {
+            width: 80px;
+            height: 80px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(229, 37, 33, 0.7);
+            backdrop-filter: blur(4px);
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            cursor: pointer;
+            transition: background 0.1s, transform 0.1s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .action-btn:active {
+            background: rgba(229, 37, 33, 0.9);
+            transform: scale(0.92);
+        }
+
+        .action-btn.jump {
+            background: rgba(255, 165, 0, 0.7);
+        }
+
+        .action-btn.jump:active {
+            background: rgba(255, 165, 0, 0.9);
+        }
     </style>
     <script type="importmap">
     {
@@ -169,6 +270,19 @@
     </div>
 
     <a href="index.html" class="back-link">← 返回博客</a>
+
+    <!-- 移动端虚拟按键 -->
+    <div class="touch-controls" id="touchControls">
+        <div class="dpad">
+            <button class="dpad-btn dpad-up" data-key="arrowup">▲</button>
+            <button class="dpad-btn dpad-left" data-key="arrowleft">◀</button>
+            <button class="dpad-btn dpad-right" data-key="arrowright">▶</button>
+            <button class="dpad-btn dpad-down" data-key="arrowdown">▼</button>
+        </div>
+        <div class="action-btns">
+            <button class="action-btn jump" data-key=" ">跳跃</button>
+        </div>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
@@ -870,6 +984,40 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        // ============ 虚拟按键触摸事件 ============
+        function setupTouchControls() {
+            const touchButtons = document.querySelectorAll('.dpad-btn, .action-btn');
+            
+            touchButtons.forEach(btn => {
+                const key = btn.dataset.key;
+                
+                const handleStart = (e) => {
+                    e.preventDefault();
+                    keys[key] = true;
+                    btn.style.transform = 'scale(0.92)';
+                    btn.style.background = btn.classList.contains('jump') 
+                        ? 'rgba(255, 165, 0, 0.9)' 
+                        : 'rgba(255,255,255,0.5)';
+                };
+                
+                const handleEnd = (e) => {
+                    e.preventDefault();
+                    keys[key] = false;
+                    btn.style.transform = '';
+                    btn.style.background = '';
+                };
+                
+                btn.addEventListener('touchstart', handleStart, { passive: false });
+                btn.addEventListener('touchend', handleEnd, { passive: false });
+                btn.addEventListener('touchcancel', handleEnd, { passive: false });
+                btn.addEventListener('mousedown', handleStart);
+                btn.addEventListener('mouseup', handleEnd);
+                btn.addEventListener('mouseleave', handleEnd);
+            });
+        }
+
+        setupTouchControls();
 
         // ============ 事件绑定 ============
         document.getElementById('startBtn').addEventListener('click', startGame);
