@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>araby的3D大冒险 - 网页3D游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #87CEEB;
+            font-family: 'Courier New', monospace;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .ui-panel {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .ui-panel span {
+            color: #FFD700;
+        }
+
+        #startScreen, #gameOverScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            color: white;
+        }
+
+        #gameOverScreen {
+            display: none;
+        }
+
+        .screen-title {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 3px 3px 0 #E52521;
+        }
+
+        .screen-subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .screen-btn {
+            padding: 15px 40px;
+            font-size: 1.3rem;
+            border: none;
+            border-radius: 30px;
+            background: #E52521;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #B91C1C;
+            transition: transform 0.1s;
+            pointer-events: all;
+        }
+
+        .screen-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .screen-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #B91C1C;
+        }
+
+        .controls-info {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 0.95rem;
+            opacity: 0.8;
+            line-height: 1.8;
+        }
+
+        .back-link {
+            position: fixed;
+            bottom: 15px;
+            left: 15px;
+            padding: 8px 18px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            z-index: 10;
+            pointer-events: all;
+            transition: background 0.3s;
+        }
+
+        .back-link:hover {
+            background: rgba(0,0,0,0.7);
+        }
+
+        .final-score {
+            font-size: 2rem;
+            color: #FFD700;
+            margin: 15px 0;
+        }
+    </style>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div class="ui-overlay">
+        <div class="ui-panel">金币: <span id="score">0</span></div>
+        <div class="ui-panel">生命: <span id="lives">3</span></div>
+    </div>
+
+    <div id="startScreen">
+        <div class="screen-title">araby的3D大冒险</div>
+        <div class="screen-subtitle">在三维世界中跳跃、探险、收集金币！</div>
+        <button class="screen-btn" id="startBtn">开始游戏</button>
+        <div class="controls-info">
+            <p>WASD 或方向键移动 | 空格键跳跃</p>
+            <p>鼠标拖拽旋转视角 | 滚轮缩放</p>
+        </div>
+    </div>
+
+    <div id="gameOverScreen">
+        <div class="screen-title" id="gameOverTitle">游戏结束</div>
+        <div class="final-score">得分: <span id="finalScore">0</span></div>
+        <button class="screen-btn" id="restartBtn">重新开始</button>
+    </div>
+
+    <a href="index.html" class="back-link">← 返回博客</a>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ============ 游戏状态 ============
+        let gameRunning = false;
+        let score = 0;
+        let lives = 3;
+
+        // ============ Three.js 场景 ============
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 20, 80);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 8, 15);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2.2;
+        controls.minDistance = 5;
+        controls.maxDistance = 30;
+        controls.enabled = false;
+
+        // ============ 灯光 ============
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(20, 30, 10);
+        dirLight.castShadow = true;
+        dirLight.shadow.camera.left = -30;
+        dirLight.shadow.camera.right = 30;
+        dirLight.shadow.camera.top = 30;
+        dirLight.shadow.camera.bottom = -30;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        // ============ 材质 ============
+        const materials = {
+            ground: new THREE.MeshStandardMaterial({ color: 0x4a8c3f }),
+            groundTop: new THREE.MeshStandardMaterial({ color: 0x5aad4a }),
+            brick: new THREE.MeshStandardMaterial({ color: 0xD2691E }),
+            pipe: new THREE.MeshStandardMaterial({ color: 0x228B22 }),
+            pipeHighlight: new THREE.MeshStandardMaterial({ color: 0x32CD32 }),
+            playerRed: new THREE.MeshStandardMaterial({ color: 0xE52521 }),
+            playerBlue: new THREE.MeshStandardMaterial({ color: 0x0000FF }),
+            playerSkin: new THREE.MeshStandardMaterial({ color: 0xFFCC99 }),
+            playerBrown: new THREE.MeshStandardMaterial({ color: 0x8B4513 }),
+            enemyBrown: new THREE.MeshStandardMaterial({ color: 0x8B4513 }),
+            coinGold: new THREE.MeshStandardMaterial({ 
+                color: 0xFFD700, 
+                metalness: 0.8, 
+                roughness: 0.2,
+                emissive: 0xFFD700,
+                emissiveIntensity: 0.2
+            }),
+            cloud: new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                transparent: true, 
+                opacity: 0.85 
+            })
+        };
+
+        // ============ 地面 ============
+        function createGround(x, z, width, depth) {
+            const group = new THREE.Group();
+            
+            const bottomGeo = new THREE.BoxGeometry(width, 2, depth);
+            const bottomMesh = new THREE.Mesh(bottomGeo, materials.ground);
+            bottomMesh.position.set(x, -1, z);
+            bottomMesh.receiveShadow = true;
+            group.add(bottomMesh);
+
+            const topGeo = new THREE.BoxGeometry(width, 0.3, depth);
+            const topMesh = new THREE.Mesh(topGeo, materials.groundTop);
+            topMesh.position.set(x, 0.15, z);
+            topMesh.receiveShadow = true;
+            group.add(topMesh);
+
+            // 草地装饰
+            for (let i = 0; i < width * depth / 8; i++) {
+                const grassH = 0.2 + Math.random() * 0.3;
+                const grassGeo = new THREE.ConeGeometry(0.05, grassH, 4);
+                const grassMat = new THREE.MeshStandardMaterial({ 
+                    color: new THREE.Color().setHSL(0.3, 0.6 + Math.random() * 0.3, 0.3 + Math.random() * 0.2)
+                });
+                const grass = new THREE.Mesh(grassGeo, grassMat);
+                grass.position.set(
+                    x + (Math.random() - 0.5) * (width - 0.5),
+                    0.3 + grassH / 2,
+                    z + (Math.random() - 0.5) * (depth - 0.5)
+                );
+                group.add(grass);
+            }
+
+            return group;
+        }
+
+        // ============ 砖块平台 ============
+        function createBrick(x, y, z, size = 1) {
+            const geo = new THREE.BoxGeometry(size, size, size);
+            const mesh = new THREE.Mesh(geo, materials.brick);
+            mesh.position.set(x, y + size / 2, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // 砖块纹理线条
+            const edges = new THREE.EdgesGeometry(geo);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0x8B4513, linewidth: 2 });
+            const wireframe = new THREE.LineSegments(edges, lineMat);
+            mesh.add(wireframe);
+            
+            return mesh;
+        }
+
+        // ============ 管道 ============
+        function createPipe(x, z, height = 2) {
+            const group = new THREE.Group();
+            
+            const bodyGeo = new THREE.CylinderGeometry(0.6, 0.6, height, 16);
+            const body = new THREE.Mesh(bodyGeo, materials.pipe);
+            body.position.set(x, height / 2, z);
+            body.castShadow = true;
+            group.add(body);
+
+            const rimGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.4, 16);
+            const rim = new THREE.Mesh(rimGeo, materials.pipeHighlight);
+            rim.position.set(x, height + 0.2, z);
+            rim.castShadow = true;
+            group.add(rim);
+
+            return group;
+        }
+
+        // ============ 金币 ============
+        function createCoin(x, y, z) {
+            const group = new THREE.Group();
+            
+            const geo = new THREE.CylinderGeometry(0.35, 0.35, 0.08, 16);
+            const mesh = new THREE.Mesh(geo, materials.coinGold);
+            mesh.rotation.x = Math.PI / 2;
+            mesh.castShadow = true;
+            group.add(mesh);
+
+            // 金币内部细节
+            const innerGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.09, 16);
+            const innerMat = new THREE.MeshStandardMaterial({ color: 0xFFA500 });
+            const inner = new THREE.Mesh(innerGeo, innerMat);
+            inner.rotation.x = Math.PI / 2;
+            group.add(inner);
+
+            group.position.set(x, y, z);
+            group.userData = { type: 'coin', collected: false, originalY: y };
+            return group;
+        }
+
+        // ============ 敌人（栗子怪） ============
+        function createEnemy(x, z, patrolRange = 4) {
+            const group = new THREE.Group();
+            
+            // 身体（蘑菇形状）
+            const bodyGeo = new THREE.SphereGeometry(0.4, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            const body = new THREE.Mesh(bodyGeo, materials.enemyBrown);
+            body.position.y = 0.4;
+            body.castShadow = true;
+            group.add(body);
+
+            const stemGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.4, 16);
+            const stem = new THREE.Mesh(stemGeo, materials.enemyBrown);
+            stem.position.y = 0.2;
+            stem.castShadow = true;
+            group.add(stem);
+
+            // 脚
+            const footGeo = new THREE.BoxGeometry(0.2, 0.15, 0.25);
+            const foot1 = new THREE.Mesh(footGeo, materials.enemyBrown);
+            foot1.position.set(-0.2, 0.075, 0);
+            group.add(foot1);
+            const foot2 = new THREE.Mesh(footGeo, materials.enemyBrown);
+            foot2.position.set(0.2, 0.075, 0);
+            group.add(foot2);
+
+            // 眼睛
+            const eyeGeo = new THREE.SphereGeometry(0.08, 8, 8);
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye1.position.set(-0.15, 0.55, 0.32);
+            group.add(eye1);
+            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye2.position.set(0.15, 0.55, 0.32);
+            group.add(eye2);
+
+            const pupilGeo = new THREE.SphereGeometry(0.04, 8, 8);
+            const pupilMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            const pupil1 = new THREE.Mesh(pupilGeo, pupilMat);
+            pupil1.position.set(-0.15, 0.55, 0.38);
+            group.add(pupil1);
+            const pupil2 = new THREE.Mesh(pupilGeo, pupilMat);
+            pupil2.position.set(0.15, 0.55, 0.38);
+            group.add(pupil2);
+
+            // 眉毛
+            const browGeo = new THREE.BoxGeometry(0.15, 0.03, 0.05);
+            const browMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            const brow1 = new THREE.Mesh(browGeo, browMat);
+            brow1.position.set(-0.15, 0.62, 0.35);
+            group.add(brow1);
+            const brow2 = new THREE.Mesh(browGeo, browMat);
+            brow2.position.set(0.15, 0.62, 0.35);
+            group.add(brow2);
+
+            group.position.set(x, 0, z);
+            group.userData = { 
+                type: 'enemy', 
+                startX: x, 
+                patrolRange: patrolRange, 
+                direction: 1, 
+                speed: 1.5,
+                dead: false
+            };
+            return group;
+        }
+
+        // ============ 玩家角色（3D马里奥风格） ============
+        function createPlayer() {
+            const group = new THREE.Group();
+
+            // 帽子
+            const hatGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.25, 16);
+            const hat = new THREE.Mesh(hatGeo, materials.playerRed);
+            hat.position.y = 1.55;
+            hat.castShadow = true;
+            group.add(hat);
+
+            const hatBrimGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.08, 16);
+            const hatBrim = new THREE.Mesh(hatBrimGeo, materials.playerRed);
+            hatBrim.position.y = 1.42;
+            group.add(hatBrim);
+
+            // 头
+            const headGeo = new THREE.SphereGeometry(0.35, 16, 16);
+            const head = new THREE.Mesh(headGeo, materials.playerSkin);
+            head.position.y = 1.1;
+            head.castShadow = true;
+            group.add(head);
+
+            // 眼睛
+            const eyeGeo = new THREE.SphereGeometry(0.06, 8, 8);
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye1.position.set(-0.12, 1.15, 0.3);
+            group.add(eye1);
+            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye2.position.set(0.12, 1.15, 0.3);
+            group.add(eye2);
+
+            // 鼻子
+            const noseGeo = new THREE.SphereGeometry(0.06, 8, 8);
+            const nose = new THREE.Mesh(noseGeo, materials.playerSkin);
+            nose.position.set(0, 1.08, 0.35);
+            group.add(nose);
+
+            // 身体（红色上衣）
+            const bodyGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.5, 16);
+            const body = new THREE.Mesh(bodyGeo, materials.playerRed);
+            body.position.y = 0.65;
+            body.castShadow = true;
+            group.add(body);
+
+            // 裤子（蓝色）
+            const pantsGeo = new THREE.CylinderGeometry(0.32, 0.3, 0.35, 16);
+            const pants = new THREE.Mesh(pantsGeo, materials.playerBlue);
+            pants.position.y = 0.25;
+            pants.castShadow = true;
+            group.add(pants);
+
+            // 手臂
+            const armGeo = new THREE.CapsuleGeometry(0.1, 0.35, 4, 8);
+            const arm1 = new THREE.Mesh(armGeo, materials.playerRed);
+            arm1.position.set(-0.45, 0.7, 0);
+            arm1.rotation.z = Math.PI / 6;
+            group.add(arm1);
+            const arm2 = new THREE.Mesh(armGeo, materials.playerRed);
+            arm2.position.set(0.45, 0.7, 0);
+            arm2.rotation.z = -Math.PI / 6;
+            group.add(arm2);
+
+            // 手套
+            const gloveGeo = new THREE.SphereGeometry(0.12, 8, 8);
+            const gloveMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const glove1 = new THREE.Mesh(gloveGeo, gloveMat);
+            glove1.position.set(-0.55, 0.5, 0);
+            group.add(glove1);
+            const glove2 = new THREE.Mesh(gloveGeo, gloveMat);
+            glove2.position.set(0.55, 0.5, 0);
+            group.add(glove2);
+
+            // 腿
+            const legGeo = new THREE.CapsuleGeometry(0.1, 0.3, 4, 8);
+            const leg1 = new THREE.Mesh(legGeo, materials.playerBlue);
+            leg1.position.set(-0.15, -0.1, 0);
+            group.add(leg1);
+            const leg2 = new THREE.Mesh(legGeo, materials.playerBlue);
+            leg2.position.set(0.15, -0.1, 0);
+            group.add(leg2);
+
+            // 鞋子
+            const shoeGeo = new THREE.BoxGeometry(0.18, 0.12, 0.25);
+            const shoe1 = new THREE.Mesh(shoeGeo, materials.playerBrown);
+            shoe1.position.set(-0.15, -0.3, 0.05);
+            group.add(shoe1);
+            const shoe2 = new THREE.Mesh(shoeGeo, materials.playerBrown);
+            shoe2.position.set(0.15, -0.3, 0.05);
+            group.add(shoe2);
+
+            group.position.set(0, 0, 0);
+            group.userData = { 
+                type: 'player',
+                vx: 0, 
+                vz: 0, 
+                vy: 0,
+                grounded: false,
+                invincible: 0
+            };
+            return group;
+        }
+
+        // ============ 云朵 ============
+        function createCloud(x, y, z, scale = 1) {
+            const group = new THREE.Group();
+            const geo = new THREE.SphereGeometry(1, 12, 12);
+            
+            const p1 = new THREE.Mesh(geo, materials.cloud);
+            p1.scale.set(1.5 * scale, 0.8 * scale, 1 * scale);
+            group.add(p1);
+            
+            const p2 = new THREE.Mesh(geo, materials.cloud);
+            p2.position.set(1.2 * scale, 0.2 * scale, 0);
+            p2.scale.set(1.2 * scale, 0.7 * scale, 0.9 * scale);
+            group.add(p2);
+            
+            const p3 = new THREE.Mesh(geo, materials.cloud);
+            p3.position.set(-1.2 * scale, 0.1 * scale, 0);
+            p3.scale.set(1.3 * scale, 0.75 * scale, 0.95 * scale);
+            group.add(p3);
+
+            group.position.set(x, y, z);
+            return group;
+        }
+
+        // ============ 关卡构建 ============
+        const platforms = [];
+        const enemies = [];
+        const coins = [];
+        let player;
+
+        function buildLevel() {
+            // 清除旧关卡
+            while(scene.children.length > 0) {
+                const obj = scene.children[0];
+                if (obj === ambientLight || obj === dirLight) break;
+                scene.remove(obj);
+            }
+            scene.add(ambientLight);
+            scene.add(dirLight);
+            platforms.length = 0;
+            enemies.length = 0;
+            coins.length = 0;
+
+            // 主地面
+            const ground = createGround(15, 0, 60, 8);
+            scene.add(ground);
+            platforms.push({ x: 15, y: 0, z: 0, width: 60, depth: 8 });
+
+            // 高台地面
+            const ground2 = createGround(-10, -2, 15, 6);
+            scene.add(ground2);
+            platforms.push({ x: -10, y: 0, z: -2, width: 15, depth: 6 });
+
+            const ground3 = createGround(40, 2, 12, 6);
+            scene.add(ground3);
+            platforms.push({ x: 40, y: 0, z: 2, width: 12, depth: 6 });
+
+            // 缺口（不生成地面）- 通过调整地面位置制造
+
+            // 砖块平台
+            const brickPositions = [
+                [5, 2, 0], [6, 2, 0], [7, 2, 0],
+                [12, 3.5, -1], [13, 3.5, -1], [14, 3.5, -1],
+                [20, 2.5, 1], [21, 2.5, 1], [22, 4, 1], [23, 4, 1],
+                [28, 3, -1], [29, 3, -1], [30, 5, -1],
+                [35, 2, 0], [36, 3.5, 0], [37, 5, 0],
+                [-5, 2, -2], [-4, 2, -2], [-3, 2, -2],
+                [-8, 3.5, 0], [-7, 3.5, 0]
+            ];
+            brickPositions.forEach(pos => {
+                const brick = createBrick(pos[0], pos[1], pos[2]);
+                scene.add(brick);
+                platforms.push({ x: pos[0], y: pos[1] + 0.5, z: pos[2], width: 1, depth: 1, height: 1 });
+            });
+
+            // 管道
+            const pipes = [[10, 0, 2], [18, 0, -2], [32, 0, 1.5]];
+            pipes.forEach(p => {
+                scene.add(createPipe(p[0], p[2], 2 + Math.random()));
+                platforms.push({ x: p[0], y: 0, z: p[2], width: 1.2, depth: 1.2, radius: 0.6 });
+            });
+
+            // 金币
+            const coinPositions = [
+                [5.5, 3.5, 0], [6.5, 3.5, 0], [7.5, 3.5, 0],
+                [13, 5, -1], [14, 5, -1],
+                [21.5, 4, 1], [22.5, 5.5, 1],
+                [29, 4.5, -1], [30, 6.5, -1],
+                [36, 5, 0], [37, 6.5, 0],
+                [-4.5, 3.5, -2], [-3.5, 3.5, -2],
+                [-7.5, 5, 0],
+                [1, 1.5, 0], [3, 1.5, 1.5], [8, 1.5, -1.5],
+                [15, 1.5, 0], [25, 1.5, 1], [33, 1.5, -1]
+            ];
+            coinPositions.forEach(pos => {
+                const coin = createCoin(pos[0], pos[1], pos[2]);
+                scene.add(coin);
+                coins.push(coin);
+            });
+
+            // 敌人
+            enemies.push(createEnemy(8, 0, 4));
+            enemies.push(createEnemy(16, -1.5, 3));
+            enemies.push(createEnemy(24, 1, 4));
+            enemies.push(createEnemy(34, -1, 3));
+            enemies.push(createEnemy(38, 2, 2));
+            enemies.push(createEnemy(-2, -2, 3));
+
+            enemies.forEach(e => scene.add(e));
+
+            // 云朵
+            const clouds = [
+                [-10, 12, -15, 1.5], [10, 14, -20, 2], [30, 11, -18, 1.8],
+                [50, 13, -15, 1.5], [-25, 15, -10, 2.2], [45, 16, -22, 1.7]
+            ];
+            clouds.forEach(c => scene.add(createCloud(c[0], c[1], c[2], c[3])));
+
+            // 玩家
+            player = createPlayer();
+            player.position.set(0, 0, 0);
+            scene.add(player);
+        }
+
+        // ============ 输入处理 ============
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        // ============ 物理与碰撞 ============
+        function updatePlayer() {
+            if (!player || !gameRunning) return;
+
+            const data = player.userData;
+            const speed = 6;
+            const jumpPower = 10;
+            const gravity = 20;
+            const friction = 0.9;
+
+            // 移动输入
+            let moveX = 0;
+            let moveZ = 0;
+            if (keys['arrowleft'] || keys['a']) moveX -= 1;
+            if (keys['arrowright'] || keys['d']) moveX += 1;
+            if (keys['arrowup'] || keys['w']) moveZ -= 1;
+            if (keys['arrowdown'] || keys['s']) moveZ += 1;
+
+            // 归一化
+            if (moveX !== 0 && moveZ !== 0) {
+                moveX *= 0.707;
+                moveZ *= 0.707;
+            }
+
+            data.vx += moveX * speed * 0.15;
+            data.vz += moveZ * speed * 0.15;
+            data.vx *= friction;
+            data.vz *= friction;
+
+            // 跳跃
+            if ((keys[' '] || keys[' ']) && data.grounded) {
+                data.vy = jumpPower;
+                data.grounded = false;
+            }
+
+            // 重力
+            data.vy -= gravity * 0.016;
+
+            // 应用速度
+            player.position.x += data.vx * 0.016;
+            player.position.z += data.vz * 0.016;
+            player.position.y += data.vy * 0.016;
+
+            // 朝向
+            if (moveX !== 0) {
+                player.rotation.y = moveX > 0 ? 0 : Math.PI;
+            }
+
+            // 平台碰撞检测
+            data.grounded = false;
+            let onPlatform = false;
+
+            // 主地面碰撞
+            if (player.position.y <= 0.35 && 
+                player.position.x >= -15 && player.position.x <= 45 &&
+                player.position.z >= -3.5 && player.position.z <= 3.5) {
+                player.position.y = 0.35;
+                data.vy = 0;
+                data.grounded = true;
+                onPlatform = true;
+            }
+
+            // 其他地面碰撞
+            if (!onPlatform) {
+                const grounds = [
+                    { x: -10, z: -2, w: 15, d: 6, y: 0.35 },
+                    { x: 40, z: 2, w: 12, d: 6, y: 0.35 }
+                ];
+                for (let g of grounds) {
+                    if (player.position.y <= g.y && 
+                        player.position.x >= g.x - g.w/2 && player.position.x <= g.x + g.w/2 &&
+                        player.position.z >= g.z - g.d/2 && player.position.z <= g.z + g.d/2) {
+                        player.position.y = g.y;
+                        data.vy = 0;
+                        data.grounded = true;
+                        onPlatform = true;
+                        break;
+                    }
+                }
+            }
+
+            // 砖块碰撞
+            if (!onPlatform) {
+                for (let p of platforms) {
+                    if (p.radius) continue; // 跳过管道
+                    if (player.position.x >= p.x - p.width/2 - 0.3 && 
+                        player.position.x <= p.x + p.width/2 + 0.3 &&
+                        player.position.z >= p.z - p.depth/2 - 0.3 && 
+                        player.position.z <= p.z + p.depth/2 + 0.3) {
+                        
+                        const top = p.y + (p.height || 0.5);
+                        if (player.position.y <= top + 0.35 && player.position.y >= top - 0.5 && data.vy <= 0) {
+                            player.position.y = top + 0.35;
+                            data.vy = 0;
+                            data.grounded = true;
+                            onPlatform = true;
+                        }
+                    }
+                }
+            }
+
+            // 掉落检测
+            if (player.position.y < -10) {
+                lives--;
+                document.getElementById('lives').textContent = lives;
+                if (lives <= 0) {
+                    gameOver(false);
+                } else {
+                    player.position.set(0, 5, 0);
+                    data.vx = 0;
+                    data.vy = 0;
+                    data.vz = 0;
+                }
+            }
+
+            if (data.invincible > 0) data.invincible -= 0.016;
+        }
+
+        function updateEnemies() {
+            enemies.forEach(e => {
+                if (e.userData.dead) return;
+                
+                const data = e.userData;
+                e.position.x += data.direction * data.speed * 0.016;
+                
+                if (e.position.x > data.startX + data.patrolRange || 
+                    e.position.x < data.startX - data.patrolRange) {
+                    data.direction *= -1;
+                }
+
+                // 与玩家碰撞
+                const dist = player.position.distanceTo(e.position);
+                if (dist < 0.8 && player.userData.invincible <= 0) {
+                    if (player.userData.vy < 0 && player.position.y > e.position.y + 0.3) {
+                        // 踩死
+                        data.dead = true;
+                        e.visible = false;
+                        player.userData.vy = 5;
+                        score += 100;
+                        document.getElementById('score').textContent = score;
+                    } else {
+                        // 受伤
+                        lives--;
+                        document.getElementById('lives').textContent = lives;
+                        player.userData.invincible = 2;
+                        if (lives <= 0) {
+                            gameOver(false);
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCoins() {
+            coins.forEach(coin => {
+                if (coin.userData.collected) return;
+                
+                // 旋转动画
+                coin.rotation.y += 0.03;
+                coin.position.y = coin.userData.originalY + Math.sin(Date.now() * 0.003) * 0.15;
+
+                const dist = player.position.distanceTo(coin.position);
+                if (dist < 0.6) {
+                    coin.userData.collected = true;
+                    coin.visible = false;
+                    score += 50;
+                    document.getElementById('score').textContent = score;
+                }
+            });
+
+            if (coins.every(c => c.userData.collected)) {
+                gameOver(true);
+            }
+        }
+
+        function updateCamera() {
+            if (!player) return;
+            
+            const targetPos = new THREE.Vector3(
+                player.position.x + 8,
+                player.position.y + 6,
+                player.position.z + 10
+            );
+            camera.position.lerp(targetPos, 0.05);
+            camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
+        }
+
+        // ============ 游戏流程 ============
+        function gameOver(win) {
+            gameRunning = false;
+            document.getElementById('gameOverScreen').style.display = 'flex';
+            document.getElementById('gameOverTitle').textContent = win ? '恭喜通关！' : '游戏结束';
+            document.getElementById('finalScore').textContent = score;
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOverScreen').style.display = 'none';
+            score = 0;
+            lives = 3;
+            document.getElementById('score').textContent = score;
+            document.getElementById('lives').textContent = lives;
+            buildLevel();
+            gameRunning = true;
+            animate();
+        }
+
+        // ============ 动画循环 ============
+        function animate() {
+            if (!gameRunning) return;
+            requestAnimationFrame(animate);
+            
+            updatePlayer();
+            updateEnemies();
+            updateCoins();
+            updateCamera();
+            
+            // 无敌闪烁
+            if (player && player.userData.invincible > 0) {
+                player.visible = Math.floor(Date.now() / 100) % 2 === 0;
+            } else if (player) {
+                player.visible = true;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // ============ 窗口调整 ============
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ============ 事件绑定 ============
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+
+        // 初始渲染
+        renderer.render(scene, camera);
+    </script>
+</body>
+</html>
