@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>墨言博客 - 记录生活与技术的点滴</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #f5f5f0;
+            --bg2: #ffffff;
+            --ink: #2c2c2c;
+            --muted: #6b6b6b;
+            --rule: #e0e0d8;
+            --accent: #4a7c59;
+            --accent2: #8b6914;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background-color: var(--bg);
+            color: var(--ink);
+            line-height: 1.7;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        a:hover {
+            color: var(--accent2);
+        }
+
+        /* 顶部导航 */
+        header {
+            background: var(--bg2);
+            border-bottom: 1px solid var(--rule);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .blog-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--ink);
+            letter-spacing: 0.05em;
+        }
+
+        .blog-title span {
+            color: var(--accent);
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+
+        nav a {
+            color: var(--muted);
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        nav a:hover,
+        nav a.active {
+            color: var(--accent);
+        }
+
+        /* 博客横幅 */
+        .hero {
+            background: linear-gradient(135deg, #3d5a47 0%, #5a8f6e 100%);
+            color: white;
+            padding: 5rem 2rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* 主体布局 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 3rem;
+        }
+
+        /* 文章列表 */
+        .post-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .post-card {
+            background: var(--bg2);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--rule);
+            transition: box-shadow 0.3s, transform 0.3s;
+        }
+
+        .post-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+        }
+
+        .post-cover {
+            width: 100%;
+            height: 220px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 3rem;
+        }
+
+        .post-content {
+            padding: 1.5rem 2rem;
+        }
+
+        .post-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .post-meta .category {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .post-title {
+            font-size: 1.4rem;
+            margin-bottom: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .post-title a {
+            color: var(--ink);
+        }
+
+        .post-title a:hover {
+            color: var(--accent);
+        }
+
+        .post-excerpt {
+            color: var(--muted);
+            line-height: 1.7;
+            margin-bottom: 1rem;
+        }
+
+        .read-more {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .read-more:hover {
+            color: var(--accent2);
+        }
+
+        /* 分页 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .pagination a,
+        .pagination span {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .pagination a {
+            background: var(--bg2);
+            border: 1px solid var(--rule);
+            color: var(--muted);
+        }
+
+        .pagination a:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .pagination span {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .widget {
+            background: var(--bg2);
+            border-radius: 8px;
+            border: 1px solid var(--rule);
+            padding: 1.5rem;
+        }
+
+        .widget-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--accent);
+            display: inline-block;
+        }
+
+        .about-widget {
+            text-align: center;
+        }
+
+        .avatar {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .about-widget p {
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        .hot-posts li {
+            list-style: none;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .hot-posts li:last-child {
+            border-bottom: none;
+        }
+
+        .hot-posts a {
+            color: var(--ink);
+            font-size: 0.95rem;
+            display: block;
+        }
+
+        .hot-posts a:hover {
+            color: var(--accent);
+        }
+
+        .hot-posts .date {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .tag-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            background: var(--bg);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--muted);
+            border: 1px solid var(--rule);
+            transition: all 0.3s;
+        }
+
+        .tag:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .archive-list li {
+            list-style: none;
+            padding: 0.5rem 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .archive-list a {
+            color: var(--ink);
+        }
+
+        .archive-list .count {
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        /* 页脚 */
+        footer {
+            background: var(--ink);
+            color: #999;
+            text-align: center;
+            padding: 2.5rem 2rem;
+            margin-top: 3rem;
+        }
+
+        footer p {
+            font-size: 0.9rem;
+        }
+
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                order: 2;
+            }
+
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+
+            nav ul {
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header>
+        <div class="header-inner">
+            <div class="blog-title">墨<span>言</span>博客</div>
+            <nav>
+                <ul>
+                    <li><a href="index.html" class="active">首页</a></li>
+                    <li><a href="#">技术</a></li>
+                    <li><a href="#">生活</a></li>
+                    <li><a href="#">随笔</a></li>
+                    <li><a href="#">关于</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 博客横幅 -->
+    <section class="hero">
+        <h1>墨言博客</h1>
+        <p>记录生活与技术的点滴，在代码与文字之间寻找平衡</p>
+    </section>
+
+    <!-- 主体内容 -->
+    <div class="container">
+        <!-- 文章列表 -->
+        <main class="post-list">
+            <article class="post-card">
+                <div class="post-cover">🚀</div>
+                <div class="post-content">
+                    <div class="post-meta">
+                        <span class="category">技术</span>
+                        <span>2026-06-28</span>
+                        <span>阅读 1,234</span>
+                    </div>
+                    <h2 class="post-title"><a href="post.html">深入浅出 React 18 新特性：Concurrent Mode 完全指南</a></h2>
+                    <p class="post-excerpt">
+                        React 18 带来了许多激动人心的新特性，包括自动批处理、 Suspense 的改进、以及全新的 Concurrent Mode。本文将从原理到实践，带你全面掌握这些新特性...
+                    </p>
+                    <a href="post.html" class="read-more">阅读全文 →</a>
+                </div>
+            </article>
+
+            <article class="post-card">
+                <div class="post-cover" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">🎨</div>
+                <div class="post-content">
+                    <div class="post-meta">
+                        <span class="category">设计</span>
+                        <span>2026-06-25</span>
+                        <span>阅读 892</span>
+                    </div>
+                    <h2 class="post-title"><a href="post.html">现代网页配色方案：从理论到实践</a></h2>
+                    <p class="post-excerpt">
+                        配色是网页设计中最重要却又最容易被忽视的部分。本文将介绍色彩理论的基础知识，并分享几个实用的配色工具和技巧，帮助你打造令人印象深刻的视觉效果...
+                    </p>
+                    <a href="post.html" class="read-more">阅读全文 →</a>
+                </div>
+            </article>
+
+            <article class="post-card">
+                <div class="post-cover" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">☕</div>
+                <div class="post-content">
+                    <div class="post-meta">
+                        <span class="category">生活</span>
+                        <span>2026-06-20</span>
+                        <span>阅读 2,156</span>
+                    </div>
+                    <h2 class="post-title"><a href="post.html">程序员的高效晨间routine：如何开启充满能量的一天</a></h2>
+                    <p class="post-excerpt">
+                        作为程序员，早晨的时间管理直接影响一整天的工作效率。分享我坚持了三年的晨间习惯，包括运动、阅读和深度工作的黄金一小时...
+                    </p>
+                    <a href="post.html" class="read-more">阅读全文 →</a>
+                </div>
+            </article>
+
+            <article class="post-card">
+                <div class="post-cover" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">📚</div>
+                <div class="post-content">
+                    <div class="post-meta">
+                        <span class="category">随笔</span>
+                        <span>2026-06-15</span>
+                        <span>阅读 567</span>
+                    </div>
+                    <h2 class="post-title"><a href="post.html">重读《代码大全》：十年后再看软件构建的经典</a></h2>
+                    <p class="post-excerpt">
+                        十年前第一次读《代码大全》，只觉晦涩难懂；十年后重读，却发现字字珠玑。这本书为何能成为软件工程领域的经典之作？我的思考与感悟...
+                    </p>
+                    <a href="post.html" class="read-more">阅读全文 →</a>
+                </div>
+            </article>
+
+            <!-- 分页 -->
+            <div class="pagination">
+                <span>1</span>
+                <a href="#">2</a>
+                <a href="#">3</a>
+                <a href="#">...</a>
+                <a href="#">下一页</a>
+            </div>
+        </main>
+
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <!-- 关于博主 -->
+            <div class="widget about-widget">
+                <div class="avatar">墨</div>
+                <h3 style="margin-bottom: 0.5rem;">墨言</h3>
+                <p>前端开发工程师，热爱技术与写作。在这里分享编程心得、设计灵感与生活感悟。愿我们都能在代码的世界里，找到属于自己的诗意。</p>
+            </div>
+
+            <!-- 热门文章 -->
+            <div class="widget">
+                <h3 class="widget-title">热门文章</h3>
+                <ul class="hot-posts">
+                    <li>
+                        <a href="#">TypeScript 高级类型体操：从入门到精通</a>
+                        <div class="date">2026-05-20 · 3,421 阅读</div>
+                    </li>
+                    <li>
+                        <a href="#">我用三个月搭建了个人知识管理系统</a>
+                        <div class="date">2026-04-15 · 2,890 阅读</div>
+                    </li>
+                    <li>
+                        <a href="#">CSS Grid 布局完全指南</a>
+                        <div class="date">2026-03-28 · 2,567 阅读</div>
+                    </li>
+                    <li>
+                        <a href="#">前端性能优化的 21 个实用技巧</a>
+                        <div class="date">2026-02-10 · 2,134 阅读</div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 标签云 -->
+            <div class="widget">
+                <h3 class="widget-title">标签云</h3>
+                <div class="tag-cloud">
+                    <a href="#" class="tag">React</a>
+                    <a href="#" class="tag">TypeScript</a>
+                    <a href="#" class="tag">CSS</a>
+                    <a href="#" class="tag">前端工程化</a>
+                    <a href="#" class="tag">设计模式</a>
+                    <a href="#" class="tag">读书笔记</a>
+                    <a href="#" class="tag">效率工具</a>
+                    <a href="#" class="tag">JavaScript</a>
+                    <a href="#" class="tag">Node.js</a>
+                    <a href="#" class="tag">生活感悟</a>
+                </div>
+            </div>
+
+            <!-- 文章归档 -->
+            <div class="widget">
+                <h3 class="widget-title">文章归档</h3>
+                <ul class="archive-list">
+                    <li><a href="#">2026年6月</a><span class="count">4 篇</span></li>
+                    <li><a href="#">2026年5月</a><span class="count">7 篇</span></li>
+                    <li><a href="#">2026年4月</a><span class="count">5 篇</span></li>
+                    <li><a href="#">2026年3月</a><span class="count">8 篇</span></li>
+                    <li><a href="#">2026年2月</a><span class="count">6 篇</span></li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 页脚 -->
+    <footer>
+        <p> 2026 墨言博客 | 用 ❤️ 和代码构建</p>
+    </footer>
+</body>
+</html>
